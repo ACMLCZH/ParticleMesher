@@ -155,6 +155,9 @@ PYBIND11_MODULE(ParticleMesherPy, m) {
             py::arg("k_bo") = 2.f,
             py::arg("k_dr") = 0.8f,
             py::arg("k_foam") = 1000.f,
+            py::arg("spray_decay") = 2.f,
+            py::arg("foam_decay") = 1.f,
+            py::arg("bubble_decay") = 0.f,
             py::arg("foam_density") = 1000.f
         );
     py::class_<PyFoamSpheres>(m, "FoamSpheres")

@@ -104,6 +104,7 @@ public:
         int generate_neighbor_min;          // 15
         int foam_neighbor_min, foam_neighbor_max;   // default 6, 20
         float k_ta, k_wc, k_bo, k_dr, k_foam;       // 4000, 50000, 2.0(Buoyancy), 0.8(Drag), 1000.0(foam_scale)
+        float spray_decay, foam_decay, bubble_decay;       // 2, 1, 0
         float foam_density;                         // 1000.0
     };
 
@@ -119,9 +120,9 @@ private:
     size_t _generate_neighbor_min;
     size_t _foam_neighbor_min, _foam_neighbor_max;
     float _k_ta, _k_wc, _k_bo, _k_dr, _k_foam;
+    float _spray_decay, _foam_decay, _bubble_decay;
     Vec2f _lim_ta, _lim_wc, _lim_ke, _lim_life;
     Vec3f _gravity, _lower_bound, _upper_bound;
-    // Transform::Ptr _transform{nullptr};
     std::vector<Vec3f> _tot_pFoams, _tot_vFoams;
     std::vector<float> _tot_lifeFoams;
     std::vector<FoamType> _tot_typeFoams;

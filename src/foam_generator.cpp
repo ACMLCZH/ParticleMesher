@@ -33,6 +33,7 @@ OpenVDBFoamGenerator::OpenVDBFoamGenerator(
     _generate_neighbor_min(config.generate_neighbor_min),
     _foam_neighbor_min(config.foam_neighbor_min), _foam_neighbor_max(config.foam_neighbor_max),
     _k_ta(config.k_ta), _k_wc(config.k_wc), _k_bo(config.k_bo), _k_dr(config.k_dr), _k_foam(config.k_foam),
+    _spray_decay{config.spray_decay}, _foam_decay{config.foam_decay}, _bubble_decay{config.bubble_decay},
     _lim_ta(config.lim_ta[0], config.lim_ta[1]),
     _lim_wc(config.lim_wc[0], config.lim_wc[1]),
     _lim_ke(config.lim_ke[0], config.lim_ke[1]),
@@ -71,13 +72,14 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
         "\ttime step = %f, particle radius = %f, voxel size = %f, support radius = %f, mass = %f, neighbor offset = %u\n"
         "\tlower = (%f, %f, %f), upper = (%f, %f, %f), gravity = (%f, %f, %f)\n"
         "\tta: (k = %f, range = (%f, %f)), wc: (k = %f, range = (%f, %f)), ke: (range = (%f, %f))\n"
-        "\tfoam scale = %f, boyancy = %f, drag = %f\n",
+        "\tfoam scale = %f, boyancy = %f, drag = %f, spray_decay = %f, foam_decay = %f, bubble_decay = %f\n",
         _time_step, _particle_radius, _voxel_size, _support_radius, _particle_mass, _neighbor_search,
         _lower_bound(0), _lower_bound(1), _lower_bound(2),
         _upper_bound(0), _upper_bound(1), _upper_bound(2), 
         _gravity(0), _gravity(1), _gravity(2),
         _k_ta, _lim_ta(0), _lim_ta(1), _k_wc, _lim_wc(0), _lim_wc(1), _lim_ke(0), _lim_ke(1),
-        _k_foam, _k_bo, _k_dr
+        _k_foam, _k_bo, _k_dr,
+        _spray_decay, _foam_decay, _bubble_decay;
     ));
 
     // Populate positions and velocities
@@ -100,46 +102,6 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
     // Find fluid neighbors
     auto point_index_grid_ptr = build_index_grid(p, _voxel_size);
     auto fluid_neighbor_indices = find_neighbors(p, *point_index_grid_ptr, _support_radius, p);
-
-    // PointAttributeVector<Vec3f> pWrapper(p);
-    // auto pointIndexGridPtr = find_neighbors(p, _transform, );
-    // createPointIndexGrid<PointIndexGrid>(pWrapper, *_transform);
-    // LeafManager<PointIndexTree> leafManager(pointIndexGridPtr->tree());
-    // AttributeArray::ScopedRegistryLock lock;
-    // leafManager.foreach([&](PointIndexTree::LeafNodeType& leaf, size_t /*idx*/) {
-    //     auto pointIndexAccessor = pointIndexGridPtr->getAccessor();
-    //     for (auto iter = leaf.cbeginValueOn(); iter; ++iter) {
-    //         const Coord &ijk = iter.getCoord();
-    //         const PointIndex32 *begin(nullptr), *end(nullptr), *cur(nullptr);
-    //         leaf.getIndices(ijk, begin, end);
-    //         std::vector<size_t> voxel_neighbor_indices;
-
-    //         // Find voxel neighbors
-    //         CoordBBox neighborBox(ijk.offsetBy(-_neighbor_search), ijk.offsetBy(_neighbor_search));
-    //         const Coord &na(neighborBox.min()), &nb(neighborBox.max());
-    //         for (auto x = na.x(); x <= nb.x(); ++x)
-    //             for (auto y = na.y(); y <= nb.y(); ++y)
-    //                 for (auto z = na.z(); z <= nb.z(); ++z) {
-    //                     auto nijk = Coord(x, y, z);
-    //                     auto nleafPtr = pointIndexAccessor.probeLeaf(nijk);
-    //                     if (!nleafPtr) continue;
-    //                     const PointIndex32 *nbegin(nullptr), *nend(nullptr);
-    //                     nleafPtr->getIndices(nijk, nbegin, nend);
-    //                     for (;nbegin < nend; ++nbegin) voxel_neighbor_indices.emplace_back(*nbegin);
-    //                 }
-        
-    //         // Find point neighbors
-    //         for (cur = begin; cur < end; ++cur) {
-    //             const Vec3f &xi = p[*cur];
-    //             for (auto nIndex: voxel_neighbor_indices) {
-    //                 const Vec3f &xj = p[nIndex];
-    //                 Vec3f xixj = xi - xj;
-    //                 if (xixj.length() < _support_radius)
-    //                     fluid_neighbor_indices[*cur].emplace_back(nIndex);
-    //             }
-    //         }
-    //     }
-    // }, true);
     
     // auto all_count = 0u;
     // for (auto i = 0u; i < particle_count; ++i) {
@@ -278,7 +240,6 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
         }
     );
 
-    // printf("%.12f %.12f %.12f %u\n", max_v_diff, max_del_curve, max_ke, max_nd);
     info_pack.push_back(str_format("Generate foams in %f ms.\n", clock.toc()));
 
     // append to foams to total
@@ -325,27 +286,6 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
             // auto pointIndexAccessor = pointIndexGridPtr->getAccessor();
             for (size_t i = rng.begin(), N = rng.end(); i < N; ++i) {
                 const Vec3f &xi = _tot_pFoams[i];
-                // const Coord ijk = _transform->worldToIndexNodeCentered(xi);
-                // CoordBBox neighborBox(ijk.offsetBy(-_neighbor_search), ijk.offsetBy(_neighbor_search));
-                // const Coord &na(neighborBox.min()), &nb(neighborBox.max());
-                // std::vector<size_t> neighbor_indices;
-                
-                // // Find particle neighbors
-                // for (auto x = na.x(); x <= nb.x(); ++x)
-                //     for (auto y = na.y(); y <= nb.y(); ++y)
-                //         for (auto z = na.z(); z <= nb.z(); ++z) {
-                //             auto nijk = Coord(x, y, z);
-                //             auto nleafPtr = pointIndexAccessor.probeLeaf(nijk);
-                //             if (!nleafPtr) continue;
-                //             const PointIndex32 *nbegin(nullptr), *nend(nullptr);
-                //             nleafPtr->getIndices(nijk, nbegin, nend);
-                //             for (;nbegin < nend; ++nbegin) {
-                //                 const Vec3f &xj = p[*nbegin];
-                //                 Vec3f xixj = xi - xj;
-                //                 if (xixj.length() < _support_radius) 
-                //                     neighbor_indices.emplace_back(*nbegin);
-                //             }
-                //         }
 
                 // Correct neighbor counts
                 foams_num_neighbors[i] = foam_neighbor_indices[i].size();
@@ -370,7 +310,7 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
                 // Handle boundary foams
                 for (auto j = 0u; j < 3; ++j) {
                     if (xi(j) < _lower_bound(j) || xi(j) > _upper_bound(j)) {
-                        _tot_lifeFoams[i] -= _time_step * 1000.0f;
+                        _tot_lifeFoams[i] = -1.0f;
                         break;
                     }
                 }
@@ -382,9 +322,9 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
     				_tot_vFoams[i] *= 0.99;
                     _tot_pFoams[i] += _time_step * _tot_vFoams[i];
     				if (foams_num_neighbors[i] < 2)
-    					_tot_lifeFoams[i] -= 15.0 * _time_step;
+    					_tot_lifeFoams[i] = -1.0f;
     				else
-    					_tot_lifeFoams[i] -= 2.0 * _time_step;
+    					_tot_lifeFoams[i] -= _spray_decay * _time_step;
                 } else {
                     Vec3f sv(0.f, 0.f, 0.f);
                     float sk = 0.0;
@@ -401,11 +341,12 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
                         _tot_typeFoams[i] = FoamType::Foam;
                         _tot_vFoams[i] = sv;
                         _tot_pFoams[i] += sv * _time_step;
-                        _tot_lifeFoams[i] -= _time_step;
+                        _tot_lifeFoams[i] -= _foam_decay * _time_step;
                     } else {                                            // bubble
                         _tot_typeFoams[i] = FoamType::Bubble;
                         _tot_vFoams[i] += _time_step * _gravity * -_k_bo + (sv - _tot_vFoams[i]) * _k_dr;
                         _tot_pFoams[i] += _time_step * _tot_vFoams[i];
+                        _tot_lifeFoams[i] -= _bubble_decay * _time_step;
                     }
                 }
             }
