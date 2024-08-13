@@ -79,7 +79,7 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
         _gravity(0), _gravity(1), _gravity(2),
         _k_ta, _lim_ta(0), _lim_ta(1), _k_wc, _lim_wc(0), _lim_wc(1), _lim_ke(0), _lim_ke(1),
         _k_foam, _k_bo, _k_dr,
-        _spray_decay, _foam_decay, _bubble_decay;
+        _spray_decay, _foam_decay, _bubble_decay
     ));
 
     // Populate positions and velocities
