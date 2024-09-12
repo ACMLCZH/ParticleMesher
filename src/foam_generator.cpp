@@ -32,7 +32,7 @@ OpenVDBFoamGenerator::OpenVDBFoamGenerator(
     _surface_neighbor_max(config.surface_neighbor_max),
     _generate_neighbor_min(config.generate_neighbor_min),
     _foam_neighbor_min(config.foam_neighbor_min), _foam_neighbor_max(config.foam_neighbor_max),
-    _k_ta(config.k_ta), _k_wc(config.k_wc), _k_bo(config.k_bo), _k_dr(config.k_dr), _k_foam(config.k_foam),
+    _k_ta(config.k_ta), _k_wc(config.k_wc), _k_bo(config.k_bo), _k_dr(config.k_dr), _k_ad(config.k_ad), _k_foam(config.k_foam),
     _spray_decay{config.spray_decay}, _foam_decay{config.foam_decay}, _bubble_decay{config.bubble_decay},
     _lim_ta(config.lim_ta[0], config.lim_ta[1]),
     _lim_wc(config.lim_wc[0], config.lim_wc[1]),
@@ -72,13 +72,14 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
         "\ttime step = %f, particle radius = %f, voxel size = %f, support radius = %f, mass = %f, neighbor offset = %u\n"
         "\tlower = (%f, %f, %f), upper = (%f, %f, %f), gravity = (%f, %f, %f)\n"
         "\tta: (k = %f, range = (%f, %f)), wc: (k = %f, range = (%f, %f)), ke: (range = (%f, %f))\n"
-        "\tfoam scale = %f, boyancy = %f, drag = %f, spray_decay = %f, foam_decay = %f, bubble_decay = %f\n",
+        "\tfoam scale = %f, boyancy = %f, drag = %f, air_damp = %f\n"
+        "\tspray_decay = %f, foam_decay = %f, bubble_decay = %f\n",
         _time_step, _particle_radius, _voxel_size, _support_radius, _particle_mass, _neighbor_search,
         _lower_bound(0), _lower_bound(1), _lower_bound(2),
         _upper_bound(0), _upper_bound(1), _upper_bound(2), 
         _gravity(0), _gravity(1), _gravity(2),
         _k_ta, _lim_ta(0), _lim_ta(1), _k_wc, _lim_wc(0), _lim_wc(1), _lim_ke(0), _lim_ke(1),
-        _k_foam, _k_bo, _k_dr,
+        _k_foam, _k_bo, _k_dr, _k_ad,
         _spray_decay, _foam_decay, _bubble_decay
     ));
 
@@ -319,7 +320,7 @@ FoamSpheres OpenVDBFoamGenerator::generate_foams(
                 if (foams_num_neighbors[i] < _foam_neighbor_min) {   // spray
                     _tot_typeFoams[i] = FoamType::Spray;
     				_tot_vFoams[i] += _time_step * _gravity;
-    				_tot_vFoams[i] *= 0.99;
+    				_tot_vFoams[i] *= _k_ad;        // air damping
                     _tot_pFoams[i] += _time_step * _tot_vFoams[i];
     				if (foams_num_neighbors[i] < 2)
     					_tot_lifeFoams[i] = -1.0f;
